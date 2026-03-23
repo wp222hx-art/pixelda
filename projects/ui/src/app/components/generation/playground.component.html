@@ -1,0 +1,604 @@
+<div class="playground-container">
+  <!-- Header -->
+  <div class="playground-header">
+    <h1 class="playground-title">
+      <span class="pixel-icon">🌐</span>
+      {{ 'PLAYGROUND.TITLE' | translate }}
+    </h1>
+    <p class="playground-subtitle">{{ 'PLAYGROUND.SUBTITLE' | translate }}</p>
+  </div>
+
+  <div class="playground-body">
+    <!-- Left Panel -->
+    <div class="left-panel">
+      <div class="panel-tabs">
+        <button class="panel-tab" [class.active]="activePanel === 'create'" (click)="activePanel = 'create'"
+                [disabled]="isObserving()">
+          🪄 {{ 'PLAYGROUND.CREATE' | translate }}
+        </button>
+        <button class="panel-tab" [class.active]="activePanel === 'scene'" (click)="activePanel = 'scene'">
+          🎬 {{ 'PLAYGROUND.SCENE' | translate }}
+        </button>
+        <button class="panel-tab" [class.active]="activePanel === 'properties'" (click)="activePanel = 'properties'"
+                [disabled]="isObserving()">
+          ⚙️
+        </button>
+        <button class="panel-tab" [class.active]="activePanel === 'agent'" (click)="activePanel = 'agent'"
+                [class.glow]="isObserving()">
+          🧠
+        </button>
+        <button class="panel-tab" [class.active]="activePanel === 'log'" (click)="activePanel = 'log'">
+          📜
+        </button>
+      </div>
+
+      <!-- === CREATE Panel === -->
+      @if (activePanel === 'create') {
+        <div class="panel-content">
+          <!-- ONE-CLICK WORLD BUILDER -->
+          <div class="panel-section world-builder-section">
+            <h3 class="section-title">🌍 {{ 'PLAYGROUND.WORLD_BUILDER' | translate }}</h3>
+            <p class="section-desc">{{ 'PLAYGROUND.WORLD_BUILDER_DESC' | translate }}</p>
+
+            @if (!worldBuilderActive()) {
+              <div class="wb-subsection">
+                <label class="wb-label">🗺️ {{ 'PLAYGROUND.MAP_SETTINGS' | translate }}</label>
+                <input type="text" [(ngModel)]="mapTheme" class="form-input"
+                       [placeholder]="'PLAYGROUND.MAP_THEME_PLACEHOLDER' | translate" />
+                <div class="wb-row">
+                  <label class="prop-label">{{ 'PLAYGROUND.MAP_COUNT' | translate }}</label>
+                  <select [(ngModel)]="mapCount" class="form-select form-select-sm">
+                    <option [value]="2">2</option>
+                    <option [value]="3">3</option>
+                    <option [value]="4">4</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="wb-subsection">
+                <label class="wb-label">🪄 {{ 'PLAYGROUND.ENTITY_LIST' | translate }}</label>
+                @for (entity of worldBuilderEntities(); track $index; let i = $index) {
+                  <div class="wb-entity-card">
+                    <div class="wb-entity-header">
+                      <span class="wb-entity-num">#{{ i + 1 }}</span>
+                      @if (worldBuilderEntities().length > 1) {
+                        <button class="btn-icon btn-danger btn-xs" (click)="removeWorldBuilderEntity(i)">✕</button>
+                      }
+                    </div>
+                    <input type="text" [ngModel]="entity.name" class="form-input"
+                           (ngModelChange)="updateWorldBuilderEntity(i, 'name', $event)"
+                           [placeholder]="'PLAYGROUND.ENTITY_NAME_PLACEHOLDER' | translate" />
+                    <input type="text" [ngModel]="entity.hint" class="form-input form-input-sm"
+                           (ngModelChange)="updateWorldBuilderEntity(i, 'hint', $event)"
+                           [placeholder]="'PLAYGROUND.ENTITY_HINT_PLACEHOLDER' | translate" />
+                    <input type="text" [ngModel]="entity.motionHint" class="form-input form-input-sm"
+                           (ngModelChange)="updateWorldBuilderEntity(i, 'motionHint', $event)"
+                           [placeholder]="'PLAYGROUND.MOTION_HINT_PLACEHOLDER' | translate" />
+                    <select [ngModel]="entity.behavior" class="form-select form-select-sm"
+                            (ngModelChange)="updateWorldBuilderEntity(i, 'behavior', $event)">
+                      <option value="wanderer">{{ getBehaviorLabel('wanderer') }}</option>
+                      <option value="guardian">{{ getBehaviorLabel('guardian') }}</option>
+                      <option value="merchant">{{ getBehaviorLabel('merchant') }}</option>
+                      <option value="wildlife">{{ getBehaviorLabel('wildlife') }}</option>
+                      <option value="predator">{{ getBehaviorLabel('predator') }}</option>
+                      <option value="social">{{ getBehaviorLabel('social') }}</option>
+                    </select>
+                  </div>
+                }
+                <button class="btn btn-secondary btn-sm wb-add-btn" (click)="addWorldBuilderEntity()">
+                  ➕ {{ 'PLAYGROUND.ADD_ENTITY' | translate }}
+                </button>
+              </div>
+
+              <label class="toggle-label wb-toggle">
+                <input type="checkbox" [(ngModel)]="worldBuilderAutoObserve" />
+                {{ 'PLAYGROUND.AUTO_OBSERVE' | translate }}
+              </label>
+
+              <button class="btn btn-world-builder" (click)="runWorldBuilder()">
+                🚀 {{ 'PLAYGROUND.BUILD_WORLD' | translate }}
+              </button>
+            } @else {
+              <div class="wb-progress">
+                <div class="wb-phase">{{ worldBuilderPhase() }}</div>
+                <div class="wb-progress-bar">
+                  <div class="wb-progress-fill" [style.width.%]="worldBuilderProgress()"></div>
+                </div>
+                <span class="wb-progress-pct">{{ worldBuilderProgress() }}%</span>
+                <div class="wb-log">
+                  @for (entry of worldBuilderLog(); track entry.step) {
+                    <div class="wb-log-entry" [class]="'log-' + entry.status">
+                      @switch (entry.status) {
+                        @case ('running') { <span class="log-icon"><span class="mini-spinner"></span></span> }
+                        @case ('done') { <span class="log-icon">✅</span> }
+                        @case ('error') { <span class="log-icon">❌</span> }
+                        @default { <span class="log-icon">⏳</span> }
+                      }
+                      <span class="log-detail">{{ entry.detail }}</span>
+                      @if (entry.url) {
+                        <img [src]="entry.url" class="log-thumb" alt="" />
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Existing World Maps -->
+          @if (worldMaps().length > 0 && !worldBuilderActive()) {
+            <div class="panel-section">
+              <h3 class="section-title">🗺️ {{ 'PLAYGROUND.WORLD_MAPS' | translate }}</h3>
+              <div class="map-selector">
+                @for (map of worldMaps(); track map.id; let i = $index) {
+                  <button class="map-thumb-btn" [class.active]="activeMapIndex() === i" (click)="switchMap(i)"
+                          [disabled]="isObserving()">
+                    <img [src]="map.url" [alt]="map.name" class="map-thumb-img" />
+                    <span class="map-thumb-name">{{ map.name }}</span>
+                  </button>
+                }
+              </div>
+              @if (!isGeneratingMaps()) {
+                <button class="btn btn-primary btn-sm" (click)="generateWorldMaps()" style="margin-top: 4px">
+                  🗺️ {{ 'PLAYGROUND.REGENERATE_MAPS' | translate }}
+                </button>
+              } @else {
+                <div class="pipeline-progress">
+                  <div class="progress-spinner"></div>
+                  <span>{{ mapGenProgress() }}</span>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Single Entity Pipeline -->
+          @if (!worldBuilderActive()) {
+            <div class="panel-section">
+              <h3 class="section-title">🪄 {{ 'PLAYGROUND.CREATE_ENTITY' | translate }}</h3>
+              <p class="section-desc">{{ 'PLAYGROUND.PIPELINE_DESC' | translate }}</p>
+
+              @if (!pipelineActive()) {
+                <div class="pipeline-form">
+                  <input type="text" [(ngModel)]="pipelineEntityName" class="form-input"
+                         [placeholder]="'PLAYGROUND.ENTITY_NAME_PLACEHOLDER' | translate" />
+                  <input type="text" [(ngModel)]="pipelineEntityHint" class="form-input"
+                         [placeholder]="'PLAYGROUND.ENTITY_HINT_PLACEHOLDER' | translate" />
+                  <input type="text" [(ngModel)]="pipelineMotionHint" class="form-input"
+                         [placeholder]="'PLAYGROUND.MOTION_HINT_PLACEHOLDER' | translate" />
+                  <div class="pipeline-row">
+                    <label class="prop-label">{{ 'PLAYGROUND.AI_BEHAVIOR' | translate }}</label>
+                    <select [(ngModel)]="pipelineBehavior" class="form-select">
+                      <option value="wanderer">{{ getBehaviorLabel('wanderer') }}</option>
+                      <option value="guardian">{{ getBehaviorLabel('guardian') }}</option>
+                      <option value="merchant">{{ getBehaviorLabel('merchant') }}</option>
+                      <option value="wildlife">{{ getBehaviorLabel('wildlife') }}</option>
+                      <option value="predator">{{ getBehaviorLabel('predator') }}</option>
+                      <option value="social">{{ getBehaviorLabel('social') }}</option>
+                    </select>
+                  </div>
+                  <button class="btn btn-accent" (click)="runEntityPipeline()">
+                    🚀 {{ 'PLAYGROUND.RUN_PIPELINE' | translate }}
+                  </button>
+                </div>
+              } @else {
+                <div class="pipeline-progress">
+                  <div class="pipeline-steps">
+                    @for (step of [1,2,3,4,5,6]; track step) {
+                      <div class="step-dot" [class.active]="pipelineStepNum() === step"
+                           [class.done]="pipelineStepNum() > step"></div>
+                    }
+                  </div>
+                  <div class="progress-spinner"></div>
+                  <span class="pipeline-status">{{ pipelineStep() }}</span>
+                  @if (pipelineResults().imageUrl) {
+                    <img [src]="pipelineResults().imageUrl" class="pipeline-preview-img" alt="Generated" />
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Quick Import -->
+            <div class="panel-section">
+              <h3 class="section-title">📥 {{ 'PLAYGROUND.QUICK_IMPORT' | translate }}</h3>
+              <div class="add-asset-form">
+                <input type="text" [(ngModel)]="newAssetName" [placeholder]="'PLAYGROUND.ASSET_NAME_PLACEHOLDER' | translate" class="form-input" />
+                <input type="text" [(ngModel)]="newAssetUrl" [placeholder]="'PLAYGROUND.ASSET_URL_PLACEHOLDER' | translate" class="form-input" />
+                <select [(ngModel)]="newAssetType" class="form-select">
+                  <option value="character">{{ 'PLAYGROUND.TYPE_CHARACTER' | translate }}</option>
+                  <option value="background">{{ 'PLAYGROUND.TYPE_BACKGROUND' | translate }}</option>
+                  <option value="prop">{{ 'PLAYGROUND.TYPE_PROP' | translate }}</option>
+                </select>
+                <div class="import-btn-row">
+                  <button class="btn btn-primary btn-sm" (click)="addAssetFromUrl()" [disabled]="isAddingAsset() || !newAssetUrl.trim()">
+                    @if (isAddingAsset()) { ... } @else { ➕ }
+                  </button>
+                  <button class="btn btn-secondary btn-sm" (click)="openImportModal()">📥 {{ 'PLAYGROUND.IMPORT_FROM_HISTORY' | translate }}</button>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Scene Panel -->
+      @if (activePanel === 'scene') {
+        <div class="panel-content">
+          <div class="panel-section">
+            <h3 class="section-title">📦 {{ 'PLAYGROUND.ASSET_LIBRARY' | translate }} <span class="badge">{{ assets().length }}</span></h3>
+            @if (assets().length === 0) {
+              <div class="empty-state"><p>{{ 'PLAYGROUND.NO_ASSETS' | translate }}</p></div>
+            } @else {
+              <div class="asset-list">
+                @for (asset of assets(); track asset.id) {
+                  <div class="asset-item">
+                    <img [src]="asset.imageUrl" [alt]="asset.name" class="asset-thumbnail" />
+                    <div class="asset-info">
+                      <span class="asset-name">{{ asset.name }}</span>
+                      <span class="asset-type-badge" [class]="'type-' + asset.type">{{ asset.type }}</span>
+                    </div>
+                    <div class="asset-actions">
+                      <button class="btn-icon" (click)="placeAssetOnCanvas(asset)" [disabled]="isObserving()">➕</button>
+                      <button class="btn-icon btn-danger" (click)="removeAsset(asset.id)" [disabled]="isObserving()">🗑️</button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="panel-section">
+            <h3 class="section-title">
+              {{ (isObserving() ? 'PLAYGROUND.ENTITIES' : 'PLAYGROUND.PLACED_SPRITES') | translate }}
+              <span class="badge">{{ placedSprites().length }}</span>
+            </h3>
+            @if (placedSprites().length === 0) {
+              <div class="empty-state"><p>{{ 'PLAYGROUND.NO_SPRITES' | translate }}</p></div>
+            } @else {
+              <div class="sprite-list">
+                @for (sprite of placedSprites(); track sprite.id) {
+                  <div class="sprite-item" [class.selected]="selectedSpriteId() === sprite.id"
+                       (click)="isObserving() ? focusEntity(sprite.id) : selectedSpriteId.set(sprite.id); activePanel = isObserving() ? 'agent' : 'properties'">
+                    <span class="sprite-behavior-dot" [class]="'dot-' + sprite.behavior"></span>
+                    <span class="sprite-name">{{ sprite.displayName || getAssetName(sprite.assetId) }}</span>
+                    <span class="sprite-level-badge">Lv{{ sprite.level }}</span>
+                    <span class="sprite-coords">({{ sprite.x }}, {{ sprite.y }})</span>
+                    @if (isObserving()) {
+                      <button class="btn-icon btn-focus" (click)="focusEntity(sprite.id); $event.stopPropagation()">👁</button>
+                    } @else {
+                      <button class="btn-icon btn-danger" (click)="removePlacedSprite(sprite.id); $event.stopPropagation()">✕</button>
+                    }
+                  </div>
+                }
+              </div>
+            }
+            @if (isObserving() && focusEntityName()) {
+              <div class="focus-indicator">
+                <span>👁 {{ 'PLAYGROUND.WATCHING' | translate }}: <strong>{{ focusEntityName() }}</strong></span>
+                <button class="btn btn-sm btn-secondary" (click)="clearFocus()">{{ 'PLAYGROUND.UNFOCUS' | translate }}</button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Properties Panel (edit mode) -->
+      @if (activePanel === 'properties') {
+        <div class="panel-content">
+          @if (getSelectedSprite(); as sprite) {
+            <div class="panel-section">
+              <h3 class="section-title">{{ 'PLAYGROUND.ENTITY_PROPERTIES' | translate }}</h3>
+              <div class="property-group">
+                <label class="prop-label">{{ 'PLAYGROUND.DISPLAY_NAME' | translate }}</label>
+                <input type="text" class="form-input" [ngModel]="sprite.displayName"
+                       (ngModelChange)="updateDisplayName(sprite.id, $event)" [disabled]="isObserving()" />
+              </div>
+              <div class="property-group">
+                <label class="prop-label">{{ 'PLAYGROUND.POSITION' | translate }}</label>
+                <span class="prop-value mono">X: {{ sprite.x }}, Y: {{ sprite.y }}</span>
+              </div>
+              <div class="property-group">
+                <label class="prop-label">{{ 'PLAYGROUND.SCALE' | translate }}</label>
+                <input type="range" min="0.1" max="3" step="0.1" [ngModel]="sprite.scale"
+                       (ngModelChange)="updateSpriteScale(sprite.id, $event)" class="scale-slider" [disabled]="isObserving()" />
+                <span class="prop-value">{{ sprite.scale | number:'1.1-1' }}x</span>
+              </div>
+              <div class="property-group">
+                <label class="prop-label">{{ 'PLAYGROUND.AI_BEHAVIOR' | translate }}</label>
+                <div class="behavior-selector">
+                  @for (b of ['wanderer', 'guardian', 'merchant', 'wildlife', 'predator', 'social', 'scenery']; track b) {
+                    <button class="behavior-btn" [class.active]="sprite.behavior === b"
+                            [class]="'bh-' + b" (click)="updateBehavior(sprite.id, $any(b))" [disabled]="isObserving()">
+                      {{ getBehaviorLabel($any(b)) }}
+                    </button>
+                  }
+                </div>
+                <p class="behavior-desc">{{ getBehaviorDesc(sprite.behavior) }}</p>
+              </div>
+              @if (sprite.behavior !== 'scenery' && sprite.behavior !== 'merchant') {
+                <div class="property-group">
+                  <label class="prop-label">{{ 'PLAYGROUND.SPEED' | translate }}</label>
+                  <input type="range" min="10" max="200" step="5" [ngModel]="sprite.speed"
+                         (ngModelChange)="updateSpriteSpeed(sprite.id, $event)" class="scale-slider" [disabled]="isObserving()" />
+                  <span class="prop-value mono">{{ sprite.speed }}px/s</span>
+                </div>
+              }
+              @if (sprite.behavior !== 'scenery') {
+                <div class="property-group">
+                  <label class="prop-label">{{ 'PLAYGROUND.INTERACTION_RADIUS' | translate }}</label>
+                  <input type="range" min="30" max="300" step="10" [ngModel]="sprite.interactionRadius"
+                         (ngModelChange)="updateInteractionRadius(sprite.id, $event)" class="scale-slider" [disabled]="isObserving()" />
+                  <span class="prop-value mono">{{ sprite.interactionRadius }}px</span>
+                </div>
+              }
+
+              <!-- Agent Stats Preview -->
+              @if (sprite.behavior !== 'scenery') {
+                <div class="property-group">
+                  <label class="prop-label">🧠 {{ 'PLAYGROUND.AGENT_STATS' | translate }}</label>
+                  <div class="agent-stats-mini">
+                    <span class="stat-chip">Lv{{ sprite.level }}</span>
+                    <span class="stat-chip">XP: {{ sprite.xp | number:'1.0-0' }}/{{ sprite.xpToNext }}</span>
+                  </div>
+                </div>
+                <div class="property-group">
+                  <label class="prop-label">{{ 'PLAYGROUND.SKILLS' | translate }}</label>
+                  <div class="skills-mini-grid">
+                    @for (sk of getSkillKeys(sprite); track sk) {
+                      <div class="skill-mini-item">
+                        <span class="skill-mini-name">{{ getSkillName(sk) }}</span>
+                        <div class="skill-mini-bar">
+                          <div class="skill-mini-fill" [style.width.%]="getSkillValue(sprite, sk)"></div>
+                        </div>
+                        <span class="skill-mini-val">{{ getSkillValue(sprite, sk) | number:'1.0-0' }}</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+
+              @if (!isObserving()) {
+                <div class="property-actions">
+                  <button class="btn btn-secondary btn-sm" (click)="flipSelectedSprite()">↔ {{ 'PLAYGROUND.FLIP' | translate }}</button>
+                  <button class="btn btn-sm" style="color:#ff6b6b" (click)="removePlacedSprite(sprite.id)">🗑️ {{ 'PLAYGROUND.REMOVE' | translate }}</button>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="empty-state"><p>{{ 'PLAYGROUND.SELECT_SPRITE' | translate }}</p></div>
+          }
+        </div>
+      }
+
+      <!-- === AGENT PROFILE Panel (during observation) === -->
+      @if (activePanel === 'agent') {
+        <div class="panel-content">
+          @if (getSelectedSprite(); as sprite) {
+            <!-- Agent Header -->
+            <div class="agent-profile-header">
+              <div class="agent-name-row">
+                <span class="sprite-behavior-dot dot-lg" [class]="'dot-' + sprite.behavior"></span>
+                <span class="agent-name">{{ sprite.displayName }}</span>
+                <span class="agent-level-badge">Lv{{ sprite.level }}</span>
+              </div>
+              <p class="agent-behavior-label">{{ getBehaviorLabel(sprite.behavior) }}</p>
+            </div>
+
+            <!-- XP Bar -->
+            <div class="panel-section agent-xp-section">
+              <div class="xp-bar-container">
+                <div class="xp-bar-label">
+                  <span>{{ 'PLAYGROUND.EXPERIENCE' | translate }}</span>
+                  <span class="xp-numbers">{{ sprite.xp | number:'1.0-0' }} / {{ sprite.xpToNext }}</span>
+                </div>
+                <div class="xp-bar">
+                  <div class="xp-bar-fill" [style.width.%]="(sprite.xp / sprite.xpToNext) * 100"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Skills -->
+            <div class="panel-section">
+              <h3 class="section-title">⚔️ {{ 'PLAYGROUND.SKILLS' | translate }}</h3>
+              <div class="skills-grid">
+                @for (sk of getSkillKeys(sprite); track sk) {
+                  <div class="skill-item">
+                    <div class="skill-header">
+                      <span class="skill-name">{{ getSkillName(sk) }}</span>
+                      <span class="skill-value">{{ getSkillValue(sprite, sk) | number:'1.0-0' }}</span>
+                    </div>
+                    <div class="skill-bar">
+                      <div class="skill-bar-fill" [style.width.%]="getSkillValue(sprite, sk)"
+                           [class.high]="getSkillValue(sprite, sk) >= 50"
+                           [class.max]="getSkillValue(sprite, sk) >= 80"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Personality Traits -->
+            <div class="panel-section">
+              <h3 class="section-title">🎭 {{ 'PLAYGROUND.PERSONALITY' | translate }}</h3>
+              <div class="traits-grid">
+                @for (tr of getTraitKeys(sprite); track tr) {
+                  <div class="trait-item">
+                    <span class="trait-name">{{ getTraitName(tr) }}</span>
+                    <div class="trait-bar">
+                      <div class="trait-bar-fill" [style.width.%]="getTraitValue(sprite, tr)"></div>
+                    </div>
+                    <span class="trait-value">{{ getTraitValue(sprite, tr) | number:'1.0-0' }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Relationships -->
+            @if (selectedAgentRelationships().length > 0) {
+              <div class="panel-section">
+                <h3 class="section-title">🤝 {{ 'PLAYGROUND.RELATIONSHIPS' | translate }} <span class="badge">{{ selectedAgentRelationships().length }}</span></h3>
+                <div class="relationships-list">
+                  @for (rel of selectedAgentRelationships(); track rel.targetId) {
+                    <div class="relation-item" [class]="'rel-' + rel.type">
+                      <span class="relation-icon">{{ getRelationIcon(rel.type) }}</span>
+                      <div class="relation-info">
+                        <span class="relation-name">{{ rel.targetName }}</span>
+                        <span class="relation-type">{{ getRelationLabel(rel.type) }}</span>
+                      </div>
+                      <div class="relation-affinity" [class.positive]="rel.affinity >= 0" [class.negative]="rel.affinity < 0">
+                        {{ rel.affinity >= 0 ? '+' : '' }}{{ rel.affinity | number:'1.0-0' }}
+                      </div>
+                      <span class="relation-count">×{{ rel.interactions }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Memory Timeline -->
+            @if (selectedAgentMemories().length > 0) {
+              <div class="panel-section">
+                <h3 class="section-title">🧠 {{ 'PLAYGROUND.MEMORIES' | translate }} <span class="badge">{{ selectedAgentMemories().length }}</span></h3>
+                <div class="memory-timeline">
+                  @for (mem of selectedAgentMemories(); track $index) {
+                    <div class="memory-item" [class]="'memory-' + mem.emotional">
+                      <span class="memory-icon">{{ getMemoryIcon(mem.type) }}</span>
+                      <div class="memory-content">
+                        <span class="memory-desc">{{ mem.description }}</span>
+                        <div class="memory-meta">
+                          <span class="memory-time">{{ formatClock(mem.time) }}</span>
+                          @if (mem.skillGained) {
+                            <span class="memory-skill">+{{ getSkillName(mem.skillGained) }}</span>
+                          }
+                          @if (mem.xpGained) {
+                            <span class="memory-xp">+{{ mem.xpGained }}xp</span>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+          } @else {
+            <div class="empty-state">
+              <p>{{ 'PLAYGROUND.SELECT_AGENT_HINT' | translate }}</p>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- World Event Log -->
+      @if (activePanel === 'log') {
+        <div class="panel-content">
+          <div class="panel-section">
+            <h3 class="section-title">📜 {{ 'PLAYGROUND.WORLD_LOG' | translate }}</h3>
+            <!-- Event filter -->
+            <div class="event-filter-row">
+              <button class="filter-btn" [class.active]="eventFilter() === 'all'" (click)="eventFilter.set('all')">{{ 'PLAYGROUND.FILTER_ALL' | translate }}</button>
+              <button class="filter-btn" [class.active]="eventFilter() === 'learning'" (click)="eventFilter.set('learning')">📚</button>
+              <button class="filter-btn" [class.active]="eventFilter() === 'social'" (click)="eventFilter.set('social')">💬</button>
+              <button class="filter-btn" [class.active]="eventFilter() === 'combat'" (click)="eventFilter.set('combat')">⚔️</button>
+              <button class="filter-btn" [class.active]="eventFilter() === 'trade'" (click)="eventFilter.set('trade')">💰</button>
+              <button class="filter-btn" [class.active]="eventFilter() === 'discovery'" (click)="eventFilter.set('discovery')">🔍</button>
+            </div>
+            @if (filteredEvents().length === 0) {
+              <div class="empty-state"><p>{{ 'PLAYGROUND.NO_EVENTS' | translate }}</p></div>
+            } @else {
+              <div class="event-log">
+                @for (evt of filteredEvents(); track $index) {
+                  <div class="event-item" [class]="'event-cat-' + (evt.category || 'system')">
+                    <span class="event-icon">{{ evt.icon }}</span>
+                    <span class="event-time">{{ formatClock(evt.time) }}</span>
+                    <span class="event-text">{{ evt.text }}</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Center: Game Canvas -->
+    <div class="center-panel">
+      <div class="canvas-toolbar">
+        <button class="toolbar-btn observe-btn" [class.observing]="isObserving()" (click)="toggleObserve()"
+                [title]="isObserving() ? ('PLAYGROUND.STOP_OBSERVING' | translate) : ('PLAYGROUND.START_OBSERVING' | translate)">
+          {{ isObserving() ? '⏹' : '👁' }}
+          {{ isObserving() ? ('PLAYGROUND.STOP_OBSERVING' | translate) : ('PLAYGROUND.START_OBSERVING' | translate) }}
+        </button>
+
+        @if (isObserving()) {
+          <div class="time-controls">
+            <button class="toolbar-btn" (click)="changeTimeScale(-0.25)" [disabled]="timeScale() <= 0.25">⏪</button>
+            <span class="time-label">×{{ timeScale().toFixed(2) }}</span>
+            <button class="toolbar-btn" (click)="changeTimeScale(0.25)" [disabled]="timeScale() >= 3">⏩</button>
+          </div>
+          <div class="toolbar-hud">
+            <span class="hud-item hud-clock">⏱ {{ formatClock(worldClock()) }}</span>
+            @if (focusEntityName()) {
+              <span class="hud-item hud-focus">👁 {{ focusEntityName() }}</span>
+            }
+          </div>
+        }
+
+        <div class="toolbar-divider"></div>
+
+        <button class="toolbar-btn" [class.active]="showGrid" (click)="toggleGrid()" [disabled]="isObserving()">
+          #</button>
+        <button class="toolbar-btn" (click)="takeScreenshot()">📷</button>
+        <button class="toolbar-btn" style="color:#ff6b6b" (click)="clearScene()" [disabled]="isObserving()">🗑️</button>
+
+        @if (worldMaps().length > 1) {
+          <div class="toolbar-map-switch">
+            @for (map of worldMaps(); track map.id; let i = $index) {
+              <button class="toolbar-btn toolbar-map-btn" [class.active]="activeMapIndex() === i"
+                      (click)="switchMap(i)" [title]="map.name" [disabled]="isObserving()">
+                {{ i + 1 }}
+              </button>
+            }
+          </div>
+        }
+
+        <span class="canvas-size">{{ canvasWidth }}×{{ canvasHeight }}</span>
+      </div>
+
+      <div #gameContainer class="game-container" [class.observing]="isObserving()"></div>
+
+      <div class="canvas-hint">
+        @if (isObserving()) {
+          {{ 'PLAYGROUND.OBSERVE_HINT' | translate }}
+        } @else if (worldBuilderActive()) {
+          {{ 'PLAYGROUND.BUILDING_HINT' | translate }}
+        } @else {
+          {{ 'PLAYGROUND.CANVAS_HINT' | translate }}
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Import from History Modal -->
+  @if (showImportModal()) {
+    <div class="modal-overlay" (click)="closeImportModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <h3 class="modal-title">📥 {{ 'PLAYGROUND.IMPORT_FROM_HISTORY' | translate }}</h3>
+        @if (historyItems.length === 0) {
+          <div class="empty-state"><p>{{ 'PLAYGROUND.NO_HISTORY' | translate }}</p></div>
+        } @else {
+          <div class="history-grid">
+            @for (item of historyItems; track item.id) {
+              <div class="history-card" (click)="importFromHistory(item)">
+                <img [src]="item.url" [alt]="item.prompt || 'Generated image'" class="history-img" />
+                <span class="history-label">{{ item.prompt ? (item.prompt | slice:0:40) + '...' : 'Image' }}</span>
+              </div>
+            }
+          </div>
+        }
+        <div class="modal-actions">
+          <button class="btn btn-secondary" (click)="closeImportModal()">{{ 'PLAYGROUND.CLOSE' | translate }}</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

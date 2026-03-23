@@ -13,8 +13,12 @@ from defs import (
     ImageEditRequest,
     MusicGenerationRequest,
     MusicResponse,
+    PromptGenerationRequest,
+    PromptGenerationResponse,
+    AnimationPromptRequest,
 )
 from services.gen_models.model_wrapper import ModelRouter
+from services.gen_models.builtin_prompt_model import builtin_gen_prompt, builtin_gen_animation_prompt
 from services.utils.frame import process_split_frames, zip_frames
 from services.utils.image_tools import merge_frames_to_sprite
 from services.utils.path import get_base_url, get_cache_folder
@@ -22,6 +26,54 @@ from services.utils.path import get_base_url, get_cache_folder
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.post("/generate/prompt", response_model=PromptGenerationResponse)
+async def generate_prompt(request: PromptGenerationRequest):
+    logger.info(f"Generating AI prompt from user input (built-in AI)")
+
+    try:
+        result = await asyncio.to_thread(
+            builtin_gen_prompt,
+            request,
+        )
+
+        if not result:
+            raise HTTPException(status_code=500, detail="No prompt returned")
+
+        logger.info(f"Prompt generated successfully")
+        return PromptGenerationResponse(prompt=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating prompt: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error generating prompt: {str(e)}"
+        )
+
+
+@router.post("/generate/animation-prompt", response_model=PromptGenerationResponse)
+async def generate_animation_prompt(request: AnimationPromptRequest):
+    logger.info(f"Generating AI animation prompt (built-in AI)")
+
+    try:
+        result = await asyncio.to_thread(
+            builtin_gen_animation_prompt,
+            request,
+        )
+
+        if not result:
+            raise HTTPException(status_code=500, detail="No animation prompt returned")
+
+        logger.info(f"Animation prompt generated successfully")
+        return PromptGenerationResponse(prompt=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating animation prompt: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error generating animation prompt: {str(e)}"
+        )
 
 
 @router.post("/generate/image", response_model=GenerationResponse)

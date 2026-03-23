@@ -4,6 +4,7 @@ from defs import (
     VideoGenerationRequest,
     ImageEditRequest,
     MusicGenerationRequest,
+    PromptGenerationRequest,
 )
 
 from services.gen_models.tongyi.tongyi_image_model import (
@@ -18,6 +19,9 @@ from services.gen_models.tongyi.tongyi_video_model import (
 from services.gen_models.tongyi.tongyi_music_model import (
     tongyi_gen_abc_music,
 )
+from services.gen_models.tongyi.tongyi_prompt_model import (
+    tongyi_gen_prompt,
+)
 
 from services.gen_models.doubao.doubao_image_model import (
     doubao_gen_single_image,
@@ -30,11 +34,33 @@ from services.gen_models.doubao.doubao_video_model import (
 from services.gen_models.doubao.doubao_music_model import (
     doubao_gen_abc_music,
 )
+from services.gen_models.doubao.doubao_prompt_model import (
+    doubao_gen_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class ModelRouter:
+    @staticmethod
+    def generate_prompt(request: PromptGenerationRequest) -> str:
+        model_type = request.model_type.lower()
+
+        if model_type == "tongyi":
+            logger.info("Routing prompt generation to Tongyi model")
+            if not request.api_key:
+                raise ValueError("API key is required for Tongyi model")
+            return tongyi_gen_prompt(request)
+        elif model_type == "doubao":
+            logger.info("Routing prompt generation to Doubao model")
+            if not request.api_key:
+                raise ValueError("API key is required for Doubao model")
+            return doubao_gen_prompt(request)
+        else:
+            raise ValueError(
+                f"Unsupported model type: {model_type}. Supported: tongyi, doubao"
+            )
+
     @staticmethod
     def generate_image(request: ImageGenerationRequest) -> str:
         model_type = request.model_type.lower()

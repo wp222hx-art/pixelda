@@ -6,9 +6,16 @@
       <div class="generation-form">
         <h4>{{ 'ANIMATION_GENERATION.GENERATION_SETTINGS' | translate }}</h4>
         <div class="form-content">
+
+          <!-- Hero Section -->
+          <div class="hero-section">
+            <div class="hero-icon">&#x1F3AC;</div>
+            <p class="hero-text">{{ 'ANIMATION_GENERATION.HERO_TEXT' | translate }}</p>
+          </div>
+
+          <!-- Base Image -->
           <div class="form-section">
             <h3>{{ 'ANIMATION_GENERATION.BASE_IMAGE' | translate }}</h3>
-
             <div class="form-group">
               <div class="url-input-container">
                 <div class="input-column">
@@ -48,60 +55,70 @@
             </div>
           </div>
 
-          <div class="form-section">
-            <h3>{{ 'ANIMATION_GENERATION.ANIMATION_PARAMETERS' | translate }}</h3>
-
-            <div class="form-group">
-              <label for="prompt">{{ 'ANIMATION_GENERATION.ANIMATION_PROMPT' | translate }}</label>
-              <textarea
-                id="prompt"
-                [(ngModel)]="prompt"
-                (input)="onFormChange()"
-                [placeholder]="'ANIMATION_GENERATION.ANIMATION_PROMPT_PLACEHOLDER' | translate"
-                rows="3"
-              ></textarea>
+          <!-- Motion Hint -->
+          <div class="form-section motion-section">
+            <h3>{{ 'ANIMATION_GENERATION.MOTION_LABEL' | translate }}</h3>
+            <p class="section-desc">{{ 'ANIMATION_GENERATION.MOTION_DESC' | translate }}</p>
+            <input
+              type="text"
+              [(ngModel)]="motionHint"
+              [placeholder]="'ANIMATION_GENERATION.MOTION_PLACEHOLDER' | translate"
+              class="motion-input"
+              (keydown.enter)="generateWithAI()"
+            />
+            <div class="hint-chips">
+              <span class="hint-chip" *ngFor="let hint of motionExamples" (click)="motionHint = hint">
+                {{ hint }}
+              </span>
             </div>
+          </div>
 
-            <div class="form-group">
-              <label for="negativePrompt">{{
-                'ANIMATION_GENERATION.NEGATIVE_PROMPT' | translate
-              }}</label>
-              <input
-                type="text"
-                id="negativePrompt"
-                [(ngModel)]="negativePrompt"
-                (input)="onFormChange()"
-                [placeholder]="'ANIMATION_GENERATION.NEGATIVE_PROMPT_PLACEHOLDER' | translate"
-              />
-            </div>
-
+          <!-- Resolution -->
+          <div class="form-section compact-section">
             <div class="form-group">
               <label for="resolution">{{ 'ANIMATION_GENERATION.RESOLUTION' | translate }}</label>
               <select id="resolution" [(ngModel)]="resolution" (change)="onFormChange()">
-                <option value="480P">
-                  {{ 'ANIMATION_GENERATION.RESOLUTION_480P' | translate }}
-                </option>
-                <option value="720p">
-                  {{ 'ANIMATION_GENERATION.RESOLUTION_720P' | translate }}
-                </option>
+                <option value="480P">{{ 'ANIMATION_GENERATION.RESOLUTION_480P' | translate }}</option>
+                <option value="720p">{{ 'ANIMATION_GENERATION.RESOLUTION_720P' | translate }}</option>
               </select>
             </div>
           </div>
 
+          <!-- Action Buttons -->
           <div class="form-actions">
             <button
-              (click)="generateAnimation()"
-              [disabled]="isGenerating() || !imageUrl() || !prompt"
-              class="generate-btn"
+              (click)="generateWithAI()"
+              [disabled]="isGenerating() || !imageUrl()"
+              class="generate-btn main-btn"
             >
               {{
-                isGenerating()
+                promptLoading()
+                  ? ('ANIMATION_GENERATION.AI_THINKING' | translate)
+                  : isGenerating()
                   ? ('ANIMATION_GENERATION.GENERATING' | translate)
-                  : ('ANIMATION_GENERATION.GENERATE_ANIMATION' | translate)
+                  : ('ANIMATION_GENERATION.AI_ANIMATE' | translate)
               }}
             </button>
             <button (click)="reset()" [disabled]="isGenerating()" class="clear-btn">
               {{ 'ANIMATION_GENERATION.RESET' | translate }}
+            </button>
+          </div>
+
+          <!-- Generated Prompt Preview -->
+          <div class="prompt-preview" *ngIf="generatedPrompt()">
+            <h4>{{ 'ANIMATION_GENERATION.AI_PROMPT' | translate }}</h4>
+            <textarea
+              class="final-prompt-editor"
+              [ngModel]="generatedPrompt()"
+              (ngModelChange)="generatedPrompt.set($event)"
+              rows="3"
+            ></textarea>
+            <button
+              (click)="generateFromPrompt()"
+              [disabled]="isGenerating()"
+              class="regenerate-prompt-btn"
+            >
+              {{ 'ANIMATION_GENERATION.REGENERATE_WITH_PROMPT' | translate }}
             </button>
           </div>
         </div>
@@ -114,19 +131,20 @@
 
         <div class="preview-loading" *ngIf="isGenerating()">
           <div class="loading-spinner"></div>
-          <p>{{ 'ANIMATION_GENERATION.GENERATING_ANIMATION' | translate }}</p>
+          <p *ngIf="promptLoading()">{{ 'ANIMATION_GENERATION.AI_CHOREOGRAPHING' | translate }}</p>
+          <p *ngIf="!promptLoading()">{{ 'ANIMATION_GENERATION.GENERATING_ANIMATION' | translate }}</p>
           <small>{{ 'ANIMATION_GENERATION.GENERATING_MESSAGE' | translate }}</small>
         </div>
 
         <div class="preview-placeholder" *ngIf="!isGenerating() && !result() && !errorMessage()">
-          <div class="preview-icon">🎬</div>
+          <div class="preview-icon">&#x1F3AC;</div>
           <p>{{ 'ANIMATION_GENERATION.PREVIEW_PLACEHOLDER' | translate }}</p>
-          <small>{{ 'ANIMATION_GENERATION.PREVIEW_MESSAGE' | translate }}</small>
+          <small>{{ 'ANIMATION_GENERATION.PREVIEW_HINT' | translate }}</small>
         </div>
 
         <div *ngIf="!isGenerating() && (result() || errorMessage())" class="result-section">
           <div *ngIf="errorMessage()" class="error-card">
-            <div class="error-icon">❌</div>
+            <div class="error-icon">&#x274C;</div>
             <div class="error-content">
               <h4>{{ 'ANIMATION_GENERATION.GENERATION_FAILED' | translate }}</h4>
               <p>{{ errorMessage() }}</p>
@@ -136,10 +154,6 @@
           <div *ngIf="!errorMessage() && result()" class="success-card">
             <div class="result-header">
               <div class="result-info">
-                <p>
-                  <strong>{{ 'ANIMATION_GENERATION.TASK_ID' | translate }}:</strong>
-                  {{ result()?.task_id || ('ANIMATION_GENERATION.AUTO_GENERATED' | translate) }}
-                </p>
                 <p>
                   <strong>{{ 'ANIMATION_GENERATION.RESOLUTION' | translate }}:</strong>
                   {{ resolution }}
