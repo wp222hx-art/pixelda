@@ -3,6 +3,22 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
+export interface PromptGenerationRequest {
+  idea?: string;
+  model_type?: string;
+}
+
+export interface AnimationPromptRequest {
+  image_url?: string;
+  motion_hint?: string;
+  model_type?: string;
+}
+
+export interface PromptGenerationResponse {
+  prompt: string;
+  error_info?: string;
+}
+
 export interface ImageGenerationRequest {
   task_id: string;
   prompt: string;
@@ -83,6 +99,18 @@ export class GenerationService {
 
   constructor(private http: HttpClient) {}
 
+  generatePrompt(request: PromptGenerationRequest): Observable<PromptGenerationResponse> {
+    return this.http
+      .post<PromptGenerationResponse>(`${this.apiUrl}/generate/prompt`, request)
+      .pipe(catchError(this.handleError));
+  }
+
+  generateAnimationPrompt(request: AnimationPromptRequest): Observable<PromptGenerationResponse> {
+    return this.http
+      .post<PromptGenerationResponse>(`${this.apiUrl}/generate/animation-prompt`, request)
+      .pipe(catchError(this.handleError));
+  }
+
   generateImage(request: ImageGenerationRequest): Observable<GenerationResponse> {
     return this.http
       .post<GenerationResponse>(`${this.apiUrl}/generate/image`, request)
@@ -128,11 +156,17 @@ export class GenerationService {
   private handleError(error: HttpErrorResponse) {
     let errorMessage = 'An unknown error occurred!';
     if (error.error instanceof ErrorEvent) {
+      // Client-side error
       errorMessage = `Error: ${error.error.message}`;
+    } else if (error.error && typeof error.error === 'object' && error.error.detail) {
+      // FastAPI-style error response: {"detail": "..."}
+      errorMessage = error.error.detail;
+    } else if (error.error && typeof error.error === 'string') {
+      errorMessage = error.error;
     } else {
-      errorMessage = `Error Code: ${error.status}\nMessage: ${error.message}`;
+      errorMessage = `Error ${error.status}: ${error.statusText || 'Request failed'}`;
     }
-    console.error(errorMessage);
+    console.error('API Error:', errorMessage);
     return throwError(() => new Error(errorMessage));
   }
 }

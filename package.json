@@ -1,0 +1,16 @@
+{
+  "name": "webapp",
+  "version": "1.0.0",
+  "description": "<div align=\"center\">   <img src=\"projects/ui/src/assets/logo.png\" alt=\"PiXelDa Logo\" width=\"200\"/>   <h1 style=\"margin: 0; font-size: 30px;\">PiXelDa</h1> </div>",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1",
+    "http-proxy-middleware": "^3.0.5"
+  }
+}

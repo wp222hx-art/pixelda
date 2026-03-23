@@ -5,6 +5,7 @@ import { ImageComponent } from './components/generation/image.component';
 import { AnimationComponent } from './components/generation/animation.component';
 import { SpriteSheetComponent } from './components/generation/sprite-sheet.component';
 import { MusicComponent } from './components/generation/music.component';
+import { PlaygroundComponent } from './components/generation/playground.component';
 import { HistoryComponent } from './components/common/history.component';
 import { SettingsComponent } from './components/common/settings.component';
 
@@ -22,6 +23,7 @@ export const routes: Routes = [
           { path: 'animation', component: AnimationComponent },
           { path: 'sprite-sheet', component: SpriteSheetComponent },
           { path: 'music', component: MusicComponent },
+          { path: 'playground', component: PlaygroundComponent },
         ],
       },
       { path: 'history', component: HistoryComponent },

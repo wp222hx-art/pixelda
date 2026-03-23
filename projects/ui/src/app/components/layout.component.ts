@@ -24,6 +24,7 @@ export class LayoutComponent {
         { label: 'NAVIGATION.ANIMATION', icon: 'animation', link: '/generate/animation' },
         { label: 'NAVIGATION.SPRITES', icon: 'sprite-sheet', link: '/generate/sprite-sheet' },
         { label: 'NAVIGATION.MUSIC', icon: 'music', link: '/generate/music' },
+        { label: 'NAVIGATION.PLAYGROUND', icon: 'gamepad', link: '/generate/playground' },
       ],
     },
     { label: 'NAVIGATION.HISTORY', icon: 'clock', link: '/history' },

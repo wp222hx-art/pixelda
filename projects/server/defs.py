@@ -35,6 +35,42 @@ MUSIC_SYSTEM_PROMPT = LazyPrompt(
     os.path.join(os.path.dirname(__file__), "assets", "abc_notation.md")
 ).__str__()
 
+PIXEL_ART_PROMPT_SYSTEM = """You are a world-class pixel art game asset designer with boundless imagination. Given a worldview or theme hint (or nothing at all), you independently create a complete, vivid pixel-art character or scene.
+
+You decide EVERYTHING creatively on your own:
+- What character, creature, or object to depict
+- Their appearance, outfit, equipment, pose, expression
+- The art style nuances and color palette
+- Any storytelling details that make the asset feel alive
+
+You MUST respond with a JSON object containing exactly two keys:
+- "prompt": a single detailed English prompt for generating a pixel art game asset image
+- "comments": a brief note about the creative choices you made
+
+Your prompt should follow this structure:
+"A high-resolution 2D pixel-art game asset depicting [detailed character/creature/object], [appearance and outfit], [pose and expression], [pixel-art style: sharp edges, vibrant colors, crisp pixel details, clean outlines, limited palette, cluster-conscious shading], against a solid dark gray background."
+
+Rules:
+- Be wildly creative and surprising. Never repeat the same concept twice.
+- If the user provides a worldview hint, use it as inspiration but go far beyond it.
+- If no hint is given, pick a random fascinating theme and create something memorable.
+- Always produce pixel-art style keywords. Always use a solid dark gray background.
+- The prompt must be a SINGLE paragraph, 80-150 words, in English."""
+
+PIXEL_ART_PROMPT_USER = """Create a pixel art game asset prompt.
+
+Worldview / theme hint: {idea}
+
+If the hint is empty or says "surprise me", pick something original and unexpected.
+Use the hint only as loose inspiration — you decide the character, style, mood, and all details.
+Return a JSON object with keys: prompt, comments."""
+
+
+class TempPromptResponse(BaseModel):
+    prompt: str
+    comments: str
+
+
 MUSIC_GEN_PROMPT = """
 Generate ABC notation of a piano song with ABC format, following below requirements, and double check the format correctness with documentation:
 duration: around {duration} seconds.
@@ -113,6 +149,51 @@ class MusicResponse(BaseModel):
     chiptune: str
     task_id: str
     error_info: Optional[str] = None
+
+
+class PromptGenerationRequest(BaseModel):
+    api_key: Optional[str] = None
+    idea: str = ""
+    model_type: str = "tongyi"
+
+
+class AnimationPromptRequest(BaseModel):
+    image_url: str = ""
+    motion_hint: str = ""
+    model_type: str = "tongyi"
+
+
+class PromptGenerationResponse(BaseModel):
+    prompt: str
+    error_info: Optional[str] = None
+
+
+ANIMATION_PROMPT_SYSTEM = """You are an expert pixel-art animation director. Given a base image URL and an optional motion hint, you create a vivid, specific animation prompt that brings the pixel-art character or scene to life.
+
+You MUST respond with a JSON object containing exactly two keys:
+- "prompt": a concise English prompt describing the animation motion (30-60 words)
+- "comments": a brief note about the creative choices you made
+
+The prompt should describe:
+- The specific motion/action the character performs
+- Key animation details (movement arcs, timing feel, secondary motions like hair/cape flowing)
+- Pixel-art animation style keywords (sprite animation, frame-by-frame, sub-pixel motion, limited palette animation)
+
+Rules:
+- Focus ONLY on motion and animation, not the character's appearance (the image already defines that).
+- Be specific about the motion: "swings a glowing sword in a wide overhead arc" not just "attacks".
+- If a motion hint is given, design the best possible animation around it.
+- If no hint is given, pick the most visually impressive and characteristic action for the character.
+- Always include "pixel-art game sprite animation" style keywords.
+- Keep it to a SINGLE short paragraph."""
+
+ANIMATION_PROMPT_USER = """Design a pixel-art animation prompt for a character/scene.
+
+Image URL (the base sprite): {image_url}
+Motion hint from user: {motion_hint}
+
+If the motion hint is empty, choose the most visually striking and characteristic action.
+Return a JSON object with keys: prompt, comments."""
 
 
 class GenerationResponse(BaseModel):

@@ -9,6 +9,7 @@ import {
   ImageGenerationRequest,
   ImageEditRequest,
   GenerationResponse,
+  PromptGenerationRequest,
 } from '../../services/generation.service';
 import { SettingsService } from '../../services/settings.service';
 
@@ -20,26 +21,30 @@ import { SettingsService } from '../../services/settings.service';
   styleUrls: ['./image.component.scss'],
 })
 export class ImageComponent implements OnInit, OnDestroy {
-  characterDescription = '';
-  faceWear = '';
-  bodyWear = '';
-  footWear = '';
-  additionalDescription = '';
+  // Simple worldview input
+  worldviewHint = '';
 
-  negativePrompt = '';
+  // Generated prompt from AI
+  generatedPrompt = signal('');
+
+  // Parameters
   size = '1024*1024';
-  seed: number | null = null;
 
-  finalPrompt = signal('');
-
+  // Tabs
   activeTab = 'generate';
 
+  // Edit mode
   imageUrl = '';
   editPrompt = '';
 
+  // State
   result = signal<GenerationResponse | null>(null);
   loading = signal(false);
+  promptLoading = signal(false);
   imageLoading = signal(false);
+
+  // Example worldview hints for placeholder rotation
+  exampleHints: string[] = [];
 
   constructor(
     private generationService: GenerationService,
@@ -50,90 +55,53 @@ export class ImageComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.loadFormData();
-    this.translate.onLangChange.subscribe(() => {
-      this.updateFinalPrompt();
-    });
-    if (!this.finalPrompt() && this.hasInputData()) {
-      this.updateFinalPrompt();
-    }
+    this.loadExampleHints();
+    this.translate.onLangChange.subscribe(() => this.loadExampleHints());
   }
 
   ngOnDestroy() {
     this.saveFormData();
   }
 
+  private loadExampleHints() {
+    const lang = this.translate.currentLang || 'en';
+    if (lang === 'zh') {
+      this.exampleHints = [
+        '赛博朋克废土',
+        '中世纪魔法森林',
+        '深海遗迹',
+        '蒸汽朋克空中城堡',
+        '像素风日式庭院',
+        '末日后的地下城',
+      ];
+    } else {
+      this.exampleHints = [
+        'Cyberpunk wasteland',
+        'Medieval magic forest',
+        'Deep sea ruins',
+        'Steampunk sky castle',
+        'Pixel-style Japanese garden',
+        'Post-apocalyptic dungeon',
+      ];
+    }
+  }
+
+  getRandomPlaceholder(): string {
+    if (!this.exampleHints.length) return '';
+    const idx = Math.floor(Math.random() * this.exampleHints.length);
+    return this.exampleHints[idx];
+  }
+
   setActiveTab(tab: 'generate' | 'edit') {
     this.activeTab = tab;
     this.saveFormData();
-    this.updateFinalPrompt();
-  }
-
-  editImage() {
-    if (!this.imageUrl.trim()) {
-      alert('Please provide an image URL');
-      return;
-    }
-
-    const prompt = this.editPrompt.trim();
-    if (!prompt.trim()) {
-      alert('Please provide an edit prompt');
-      return;
-    }
-
-    this.loading.set(true);
-    this.imageLoading.set(true);
-
-    const request: ImageEditRequest = {
-      image_url: this.imageUrl,
-      prompt: prompt,
-      task_id: this.generationService.generateTaskId('img_edit'),
-      model_type: this.settingService.getActiveModel(),
-      negative_prompt: this.negativePrompt || undefined,
-      size: this.size,
-      seed: this.seed || undefined,
-    };
-
-    this.generationService.editImage(request).subscribe({
-      next: (result) => {
-        this.result.set(result);
-        this.loading.set(false);
-        if (result.url && !result.error_info) {
-          this.storeGenerationToHistory(result, prompt);
-        }
-      },
-      error: (error) => {
-        this.result.set({
-          url: '',
-          task_id: request.task_id,
-          error_info: error.message,
-        });
-        this.loading.set(false);
-        this.imageLoading.set(false);
-      },
-    });
-  }
-
-  private hasInputData(): boolean {
-    return !!(
-      this.characterDescription.trim() ||
-      this.faceWear.trim() ||
-      this.bodyWear.trim() ||
-      this.footWear.trim() ||
-      this.additionalDescription.trim()
-    );
   }
 
   private saveFormData() {
     const formData = {
-      characterDescription: this.characterDescription,
-      faceWear: this.faceWear,
-      bodyWear: this.bodyWear,
-      footWear: this.footWear,
-      additionalDescription: this.additionalDescription,
-      negativePrompt: this.negativePrompt,
+      worldviewHint: this.worldviewHint,
+      generatedPrompt: this.generatedPrompt(),
       size: this.size,
-      seed: this.seed,
-      finalPrompt: this.finalPrompt(),
       activeTab: this.activeTab,
       imageUrl: this.imageUrl,
       editPrompt: this.editPrompt,
@@ -146,15 +114,9 @@ export class ImageComponent implements OnInit, OnDestroy {
     if (savedData) {
       try {
         const formData = JSON.parse(savedData);
-        this.characterDescription = formData.characterDescription || '';
-        this.faceWear = formData.faceWear || '';
-        this.bodyWear = formData.bodyWear || '';
-        this.footWear = formData.footWear || '';
-        this.additionalDescription = formData.additionalDescription || '';
-        this.negativePrompt = formData.negativePrompt || '';
+        this.worldviewHint = formData.worldviewHint || '';
+        this.generatedPrompt.set(formData.generatedPrompt || '');
         this.size = formData.size || '1024*1024';
-        this.seed = formData.seed;
-        this.finalPrompt.set(formData.finalPrompt || '');
         this.activeTab = formData.activeTab || 'generate';
         this.imageUrl = formData.imageUrl || '';
         this.editPrompt = formData.editPrompt || '';
@@ -164,95 +126,81 @@ export class ImageComponent implements OnInit, OnDestroy {
     }
   }
 
-  onFormChange(updateFinalPrompt: boolean = true) {
-    if (updateFinalPrompt) {
-      this.updateFinalPrompt();
-    }
-    this.saveFormData();
-  }
+  async generateWithAI() {
+    this.promptLoading.set(true);
+    this.loading.set(true);
+    this.imageLoading.set(true);
+    this.result.set(null);
 
-  private updateFinalPrompt() {
-    if (this.activeTab === 'generate') {
-      this.buildPrompt().then((prompt) => this.finalPrompt.set(prompt));
-    } else if (this.activeTab === 'edit') {
-      this.finalPrompt.set(this.editPrompt);
-    }
-  }
+    try {
+      // Step 1: Generate prompt via built-in AI (no user API key needed)
+      const promptRequest: PromptGenerationRequest = {
+        idea: this.worldviewHint.trim() || undefined,
+        model_type: this.settingService.getActiveModel(),
+      };
 
-  onFinalPromptChange() {
-    this.saveFormData();
-  }
-
-  onImageUrlChange() {
-    this.saveFormData();
-  }
-
-  onThumbnailError() {}
-
-  buildPrompt(): Promise<string> {
-    const parts: string[] = [];
-
-    if (this.characterDescription.trim()) {
-      parts.push(this.characterDescription.trim());
-    }
-
-    const promises: Promise<string>[] = [];
-
-    if (this.faceWear.trim()) {
-      promises.push(
-        lastValueFrom(
-          this.translate.get('IMAGE_GENERATION.WEARING_ON_FACE', { item: this.faceWear.trim() })
-        )
+      const promptResult = await lastValueFrom(
+        this.generationService.generatePrompt(promptRequest)
       );
-    }
 
-    if (this.bodyWear.trim()) {
-      promises.push(
-        lastValueFrom(
-          this.translate.get('IMAGE_GENERATION.WEARING_ON_BODY', { item: this.bodyWear.trim() })
-        )
-      );
-    }
+      if (promptResult.error_info) {
+        this.result.set({
+          url: '',
+          error_info: promptResult.error_info,
+        });
+        this.loading.set(false);
+        this.promptLoading.set(false);
+        this.imageLoading.set(false);
+        return;
+      }
 
-    if (this.footWear.trim()) {
-      promises.push(
-        lastValueFrom(
-          this.translate.get('IMAGE_GENERATION.WEARING_ON_FEET', { item: this.footWear.trim() })
-        )
-      );
-    }
+      this.generatedPrompt.set(promptResult.prompt);
+      this.promptLoading.set(false);
+      this.saveFormData();
 
-    if (this.additionalDescription.trim()) {
-      parts.push(this.additionalDescription.trim());
+      // Step 2: Generate image with that prompt (needs user API key)
+      if (!this.settingService.hasAnyApiKey()) {
+        this.loading.set(false);
+        this.imageLoading.set(false);
+        this.result.set({
+          url: '',
+          error_info: this.getNoApiKeyMessage(),
+        });
+        return;
+      }
+      this.doGenerateImage(promptResult.prompt);
+    } catch (error: any) {
+      this.result.set({
+        url: '',
+        error_info: error.message || 'Failed to generate prompt',
+      });
+      this.loading.set(false);
+      this.promptLoading.set(false);
+      this.imageLoading.set(false);
     }
-
-    return Promise.all(promises).then((translatedParts) => {
-      translatedParts.forEach((part) => parts.push(part));
-      return lastValueFrom(
-        this.translate.get('IMAGE_GENERATION.PROMPT_TEMPLATE', { description: parts.join(', ') })
-      );
-    });
   }
 
-  async generateImage() {
-    let prompt = this.finalPrompt().trim();
-    if (!prompt) {
-      prompt = await this.buildPrompt();
-    }
-
-    if (!prompt.trim()) {
-      alert('Please provide at least a character description or additional description');
+  generateFromPrompt() {
+    if (!this.settingService.hasAnyApiKey()) {
+      this.result.set({
+        url: '',
+        error_info: this.getNoApiKeyMessage(),
+      });
       return;
     }
 
+    const prompt = this.generatedPrompt().trim();
+    if (!prompt) return;
     this.loading.set(true);
     this.imageLoading.set(true);
+    this.result.set(null);
+    this.doGenerateImage(prompt);
+  }
 
+  private doGenerateImage(prompt: string) {
     const request: ImageGenerationRequest = {
       prompt,
-      negative_prompt: this.negativePrompt || undefined,
       size: this.size,
-      seed: this.seed || undefined,
       task_id: this.generationService.generateTaskId('img'),
       model_type: this.settingService.getActiveModel(),
     };
@@ -277,15 +225,54 @@ export class ImageComponent implements OnInit, OnDestroy {
     });
   }
 
+  editImage() {
+    if (!this.settingService.hasAnyApiKey()) {
+      this.result.set({
+        url: '',
+        error_info: this.getNoApiKeyMessage(),
+      });
+      return;
+    }
+
+    if (!this.imageUrl.trim()) return;
+    const prompt = this.editPrompt.trim();
+    if (!prompt) return;
+
+    this.loading.set(true);
+    this.imageLoading.set(true);
+
+    const request: ImageEditRequest = {
+      image_url: this.imageUrl,
+      prompt: prompt,
+      task_id: this.generationService.generateTaskId('img_edit'),
+      model_type: this.settingService.getActiveModel(),
+      size: this.size,
+    };
+
+    this.generationService.editImage(request).subscribe({
+      next: (result) => {
+        this.result.set(result);
+        this.loading.set(false);
+        if (result.url && !result.error_info) {
+          this.storeGenerationToHistory(result, prompt);
+        }
+      },
+      error: (error) => {
+        this.result.set({
+          url: '',
+          task_id: request.task_id,
+          error_info: error.message,
+        });
+        this.loading.set(false);
+        this.imageLoading.set(false);
+      },
+    });
+  }
+
   clearForm() {
-    this.characterDescription = '';
-    this.faceWear = '';
-    this.bodyWear = '';
-    this.footWear = '';
-    this.additionalDescription = '';
-    this.negativePrompt = '';
-    this.seed = null;
-    this.finalPrompt.set('');
+    this.worldviewHint = '';
+    this.generatedPrompt.set('');
+    this.size = '1024*1024';
     this.activeTab = 'generate';
     this.imageUrl = '';
     this.editPrompt = '';
@@ -294,9 +281,7 @@ export class ImageComponent implements OnInit, OnDestroy {
   }
 
   regenerateImage() {
-    if (this.result() && !this.result()!.error_info) {
-      this.generateImage();
-    }
+    this.generateWithAI();
   }
 
   navigateToAnimation() {
@@ -306,13 +291,25 @@ export class ImageComponent implements OnInit, OnDestroy {
     }
   }
 
+  sendToPlayground() {
+    if (this.result() && this.result()!.url) {
+      const assetData = {
+        url: this.result()!.url,
+        name: this.generatedPrompt()
+          ? this.generatedPrompt().substring(0, 30)
+          : `Image_${Date.now()}`,
+        type: 'character',
+      };
+      localStorage.setItem('pixelda_playground_import', JSON.stringify(assetData));
+      this.router.navigate(['/generate/playground']);
+    }
+  }
+
   editGeneratedImage() {
     if (this.result() && this.result()!.url) {
       const imageUrl = this.result()!.url;
-
       this.result.set(null);
       this.imageLoading.set(false);
-
       this.setActiveTab('edit');
       this.imageUrl = imageUrl;
       this.editPrompt = '';
@@ -328,6 +325,15 @@ export class ImageComponent implements OnInit, OnDestroy {
     this.imageLoading.set(false);
   }
 
+  onThumbnailError() {}
+
+  private getNoApiKeyMessage(): string {
+    const lang = this.translate.currentLang || 'en';
+    return lang === 'zh'
+      ? '请先在设置页面配置 API Key'
+      : 'Please configure your API Key in Settings first';
+  }
+
   private storeGenerationToHistory(result: GenerationResponse, prompt: string) {
     const historyItem = {
       id: result.task_id || `img_${Date.now()}`,
@@ -336,7 +342,6 @@ export class ImageComponent implements OnInit, OnDestroy {
       prompt: prompt,
       timestamp: new Date().toISOString(),
       size: this.size,
-      seed: this.seed,
     };
 
     const existingHistory = localStorage.getItem('pixelda_generation_history');
@@ -354,12 +359,10 @@ export class ImageComponent implements OnInit, OnDestroy {
     const maxAge = 24 * 60 * 60 * 1000;
     history = history.filter((item) => {
       const itemDate = new Date(item.timestamp);
-      const age = now.getTime() - itemDate.getTime();
-      return age <= maxAge;
+      return now.getTime() - itemDate.getTime() <= maxAge;
     });
 
     history.unshift(historyItem);
-
     if (history.length > 50) {
       history = history.slice(0, 50);
     }
